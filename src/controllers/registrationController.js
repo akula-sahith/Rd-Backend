@@ -67,13 +67,19 @@ exports.registerTeam = async (req, res) => {
 
     // 📧 Send confirmation email (NON-BLOCKING)
     sendRegistrationEmail({
-      toEmail: data.leaderEmail,
-      toName: data.leaderName,
-      registrationId,
-      teamName: data.teamName,
-    }).catch(err => {
-      console.error("Email failed:", err.message);
-    });
+  toEmail: data.leaderEmail,
+  toName: data.leaderName,
+  registrationId,
+  teamName: data.teamName,
+  teamSize: data.teamSize,
+  members: [
+    data.leaderName,
+    data.member2Name,
+    data.member3Name,
+    ...(data.teamSize === "4" ? [data.member4Name] : [])
+  ]
+});
+
 
     // Response
     res.status(201).json({
