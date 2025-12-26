@@ -1,11 +1,12 @@
 const Team = require("../models/Team");
 const Counter = require("../models/Counter");
+const sendRegistrationEmail = require("../utils/sendEmail");
 
 exports.registerTeam = async (req, res) => {
   try {
     const data = req.body;
 
-    // Prevent duplicate team names
+    // Prevent duplicate team name
     const existingTeam = await Team.findOne({ teamName: data.teamName });
     if (existingTeam) {
       return res.status(409).json({
@@ -13,22 +14,21 @@ exports.registerTeam = async (req, res) => {
       });
     }
 
-    // 🔑 Get and increment counter
+    // Generate Registration ID
     const counter = await Counter.findOneAndUpdate(
       { name: "registrationId" },
       { $inc: { seq: 1 } },
       { new: true, upsert: true }
     );
 
-    // 🔢 Generate RD ID
-    const regNumber =
+    const registrationId =
       counter.seq < 10
         ? `RD0${counter.seq}`
         : `RD${counter.seq}`;
 
     // Save team
     const team = await Team.create({
-      registrationId: regNumber,
+      registrationId,
 
       teamName: data.teamName,
       teamSize: data.teamSize,
@@ -65,12 +65,23 @@ exports.registerTeam = async (req, res) => {
       },
     });
 
-    // ✅ Response
+    // 📧 Send confirmation email (NON-BLOCKING)
+    sendRegistrationEmail({
+      toEmail: data.leaderEmail,
+      toName: data.leaderName,
+      registrationId,
+      teamName: data.teamName,
+    }).catch(err => {
+      console.error("Email failed:", err.message);
+    });
+
+    // Response
     res.status(201).json({
       success: true,
       message: "Team Registered Successfully",
-      registrationId: regNumber,
+      registrationId,
     });
+
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Server Error" });
