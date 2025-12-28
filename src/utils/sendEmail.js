@@ -33,7 +33,7 @@ const sendRegistrationEmail = async ({
             <!-- Header -->
             <tr>
               <td style="background:linear-gradient(135deg,#6b21a8,#9333ea); padding:24px; text-align:center; color:#ffffff;">
-                <h1 style="margin:0; font-size:22px;">RD Conclave 2025</h1>
+                <h1 style="margin:0; font-size:22px;">RD Conclave 2026</h1>
                 <p style="margin:6px 0 0; font-size:14px;">CodeFusion Hackathon</p>
               </td>
             </tr>
@@ -134,7 +134,7 @@ const sendRegistrationEmail = async ({
             <!-- Footer -->
             <tr>
               <td style="background:#f9fafb; padding:14px; text-align:center; font-size:12px; color:#6b7280;">
-                © 2025 RD Conclave • Siddhartha Academy of Higher Education
+                © 2026 RD Conclave • Siddhartha Academy of Higher Education
               </td>
             </tr>
 
