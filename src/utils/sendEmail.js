@@ -50,7 +50,7 @@ const sendRegistrationEmail = async ({
                 <p style="font-size:15px; line-height:1.6;">
                   We’re excited to inform you that your team
                   <strong>${teamName}</strong> has been successfully registered for
-                  <strong>RD Conclave – CodeFusion 2025</strong>.
+                  <strong>RD Conclave – CodeFusion 2026</strong>.
                 </p>
 
                 <!-- Info Box -->
