@@ -162,7 +162,7 @@ const sendRegistrationEmail = async ({
                 Name: toName,
               },
             ],
-            Subject: "RD Conclave 2025 – Registration Confirmed",
+            Subject: "RD Conclave 2026 Codefusion – Registration Confirmed",
             HTMLPart: htmlContent,
             TextPart: `
 Team ${teamName} registered successfully.
