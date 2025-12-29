@@ -6,15 +6,31 @@ exports.registerTeam = async (req, res) => {
   try {
     const data = req.body;
 
-    // Prevent duplicate team name
-    const existingTeam = await Team.findOne({ teamName: data.teamName });
-    if (existingTeam) {
+    // ❌ Prevent duplicate team name
+    const existingTeamName = await Team.findOne({
+      teamName: data.teamName,
+    });
+
+    if (existingTeamName) {
       return res.status(409).json({
+        success: false,
         message: "Team name already registered",
       });
     }
 
-    // Generate Registration ID
+    // ❌ Prevent duplicate team email (leader email)
+    const existingTeamEmail = await Team.findOne({
+      "leader.email": data.leaderEmail,
+    });
+
+    if (existingTeamEmail) {
+      return res.status(409).json({
+        success: false,
+        message: "This email is already used for another team",
+      });
+    }
+
+    // ✅ Generate Registration ID
     const counter = await Counter.findOneAndUpdate(
       { name: "registrationId" },
       { $inc: { seq: 1 } },
@@ -22,11 +38,9 @@ exports.registerTeam = async (req, res) => {
     );
 
     const registrationId =
-      counter.seq < 10
-        ? `RD0${counter.seq}`
-        : `RD${counter.seq}`;
+      counter.seq < 10 ? `RD0${counter.seq}` : `RD${counter.seq}`;
 
-    // Save team
+    // ✅ Save team
     const team = await Team.create({
       registrationId,
 
@@ -67,21 +81,22 @@ exports.registerTeam = async (req, res) => {
 
     // 📧 Send confirmation email (NON-BLOCKING)
     sendRegistrationEmail({
-  toEmail: data.leaderEmail,
-  toName: data.leaderName,
-  registrationId,
-  teamName: data.teamName,
-  teamSize: data.teamSize,
-  members: [
-    data.leaderName,
-    data.member2Name,
-    data.member3Name,
-    ...(data.teamSize === "4" ? [data.member4Name] : [])
-  ]
-});
+      toEmail: data.leaderEmail,
+      toName: data.leaderName,
+      registrationId,
+      teamName: data.teamName,
+      teamSize: data.teamSize,
+      members: [
+        data.leaderName,
+        data.member2Name,
+        data.member3Name,
+        ...(data.teamSize === "4" ? [data.member4Name] : []),
+      ],
+    }).catch(err => {
+      console.error("❌ Email failed:", err.message);
+    });
 
-
-    // Response
+    // ✅ Response
     res.status(201).json({
       success: true,
       message: "Team Registered Successfully",
@@ -89,7 +104,10 @@ exports.registerTeam = async (req, res) => {
     });
 
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Server Error" });
+    console.error("❌ Server Error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server Error",
+    });
   }
 };

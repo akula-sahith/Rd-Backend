@@ -4,6 +4,7 @@ const cors = require("cors");
 const registrationRoutes = require("./routes/registrationRoutes");
 const teamRoutes = require("./routes/teamRoutes");
 const fakeTeamRoutes = require("./routes/fakeTeamRoutes");
+const paymentRoutes = require("./routes/paymentRoutes");
 const app = express();
 
 app.use(cors());
@@ -12,4 +13,5 @@ app.use(express.json());
 app.use("/api/teams", registrationRoutes);
 app.use("/api/teams", teamRoutes);
 app.use("/api/faketeams", fakeTeamRoutes);
+app.use("/api/payment",paymentRoutes);
 module.exports = app;
