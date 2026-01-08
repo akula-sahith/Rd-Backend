@@ -84,15 +84,18 @@ exports.submitQuiz = async (req, res) => {
 exports.getLeaderboard = async (req, res) => {
   try {
     const attempts = await QuizAttempt.find()
-      .sort({ totalScore: -1, createdAt: 1 })
+      .sort({ totalScore: -1, createdAt: 1 }) // score desc, time asc
       .lean();
 
     const leaderboard = await Promise.all(
       attempts.map(async (attempt, index) => {
         const team = await Team.findOne(
           { registrationId: attempt.registrationId },
-          { teamName: 1, leader: 1 }
-        );
+          {
+            teamName: 1,
+            leader: 1, // includes name, email, college
+          }
+        ).lean();
 
         return {
           rank: index + 1,
@@ -100,6 +103,7 @@ exports.getLeaderboard = async (req, res) => {
           teamName: team?.teamName || "Unknown",
           leaderName: team?.leader?.name || "N/A",
           leaderEmail: team?.leader?.email || "N/A",
+          college: team?.leader?.college || "N/A", // ✅ added
           score: attempt.totalScore,
           submittedAt: attempt.createdAt,
         };

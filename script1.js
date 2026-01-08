@@ -4,7 +4,7 @@ const mongoose = require("mongoose");
 const Team = require("./src/models/Team");
 const sendRegistrationEmail = require("./src/utils/sendEmail");
 
-const REGISTRATION_ID = "RD164"; // 🔴 ONLY THIS IS HARDCODED
+const REGISTRATION_ID = "RD91"; // 🔴 ONLY THIS IS HARDCODED
 
 (async () => {
   try {
