@@ -50,15 +50,22 @@ exports.submitQuiz = async (req, res) => {
   const evaluatedAnswers = [];
 
   for (const r of responses) {
-    const question = await QuizQuestion.findOne({
-  questionId: r.questionId,
-});
+  const question = await QuizQuestion.findOne({
+    questionId: r.questionId,
+  });
 
+  if (!question) continue;
 
-    const isCorrect = question.correctAnswer === r.selectedOption;
-    const marks = isCorrect ? question.marks : 0;
+  let isCorrect = false;
+  let marks = 0;
 
-    totalScore += marks;
+  // 🚫 Unanswered question
+  if (r.selectedOption !== -1) {
+    isCorrect = question.correctAnswer === r.selectedOption;
+    marks = isCorrect ? question.marks : 0;
+  }
+
+  totalScore += marks;
 
     evaluatedAnswers.push({
       questionId: r.questionId,
