@@ -6,6 +6,7 @@ const teamRoutes = require("./routes/teamRoutes");
 const fakeTeamRoutes = require("./routes/fakeTeamRoutes");
 const paymentRoutes = require("./routes/paymentRoutes");
 const scanRoutes = require("./routes/scanRoutes");
+const quizRoutes = require("./routes/quizRoutes");
 const app = express();
 
 app.use(cors());
@@ -16,5 +17,6 @@ app.use("/api/teams", teamRoutes);
 app.use("/api/faketeams", fakeTeamRoutes);
 app.use("/api/payment",paymentRoutes);
 app.use("/api/qrsystem",scanRoutes);
+app.use("/api/quiz",quizRoutes);
 app.use("/api", require("./routes/adminRoutes"));
 module.exports = app;
