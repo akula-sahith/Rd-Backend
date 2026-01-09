@@ -160,20 +160,6 @@ exports.submitQuiz = async (req, res) => {
 };
 
 
-  const attempt = await QuizAttempt.create({
-    registrationId,
-    answers: evaluatedAnswers,
-    totalScore,
-  });
-
-  res.status(200).json({
-    success: true,
-    message: "Quiz submitted successfully",
-    totalScore,
-    answers: evaluatedAnswers, // 👈 FULL FEEDBACK
-  });
-};
-
 
 exports.getLeaderboard = async (req, res) => {
   try {
