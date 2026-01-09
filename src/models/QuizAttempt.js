@@ -11,7 +11,7 @@ const quizAttemptSchema = new mongoose.Schema(
     answers: [
       {
         questionId: String,
-        selectedOption: Number,
+        selectedOption: [Number],
         isCorrect: Boolean,
         marksObtained: Number,
       },
