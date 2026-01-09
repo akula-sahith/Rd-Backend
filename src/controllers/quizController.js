@@ -38,72 +38,127 @@ exports.getQuizQuestions = async (req, res) => {
 
 
 exports.submitQuiz = async (req, res) => {
-  const { registrationId, responses } = req.body;
+  try {
+    const { registrationId, responses } = req.body;
 
-  const alreadyAttempted = await QuizAttempt.findOne({ registrationId });
-  if (alreadyAttempted) {
-    return res.status(403).json({
-      success: false,
-      message: "Quiz already submitted",
-    });
-  }
-
-  let totalScore = 0;
-  const evaluatedAnswers = [];
-
-  for (const r of responses) {
-    const question = await QuizQuestion.findOne({
-      questionId: r.questionId,
-    });
-
-    if (!question) continue;
-
-    const correctAnswers = question.correctAnswer; // array
-    const isMultiple = correctAnswers.length > 1;
-
-    let isCorrect = false;
-    let marks = 0;
-
-    // 🚫 Unanswered
-    if (
-      r.selectedOption === -1 ||
-      r.selectedOption === null ||
-      (Array.isArray(r.selectedOption) && r.selectedOption.length === 0)
-    ) {
-      isCorrect = false;
-      marks = 0;
-    } else {
-      const selected = Array.isArray(r.selectedOption)
-        ? r.selectedOption
-        : [r.selectedOption];
-
-      // Normalize + sort for comparison
-      const sortedSelected = [...selected].sort();
-      const sortedCorrect = [...correctAnswers].sort();
-
-      isCorrect =
-        sortedSelected.length === sortedCorrect.length &&
-        sortedSelected.every((v, i) => v === sortedCorrect[i]);
-
-      marks = isCorrect ? question.marks : 0;
+    if (!registrationId || !Array.isArray(responses)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid payload",
+      });
     }
 
-    totalScore += marks;
+    // 🔐 STEP 1: Prevent double submission (DB-level safety)
+    const alreadyAttempted = await QuizAttempt.findOne({ registrationId }).lean();
+    if (alreadyAttempted) {
+      return res.status(403).json({
+        success: false,
+        message: "Quiz already submitted",
+      });
+    }
 
-    evaluatedAnswers.push({
-      questionId: question.questionId,
-      question: question.question,
-      options: question.options,
+    // 📦 STEP 2: Fetch all required questions in ONE query
+    const questionIds = responses.map(r => r.questionId);
 
-      correctAnswer: correctAnswers, // 👈 send correct answers
-      selectedOption: r.selectedOption,
+    const questions = await QuizQuestion.find({
+      questionId: { $in: questionIds }
+    }).lean();
 
-      isMultiple, // 👈 tells frontend checkbox vs radio
-      isCorrect,
-      marksObtained: marks,
-      totalMarks: question.marks,
+    // 🚀 Build fast lookup map
+    const questionMap = new Map();
+    questions.forEach(q => questionMap.set(q.questionId, q));
+
+    let totalScore = 0;
+    const evaluatedAnswers = [];
+
+    // 🧠 STEP 3: Evaluate answers in memory (NO DB CALLS)
+    for (const r of responses) {
+      const question = questionMap.get(r.questionId);
+      if (!question) continue;
+
+      const correctAnswers = question.correctAnswer; // array
+      const isMultiple = correctAnswers.length > 1;
+
+      let isCorrect = false;
+      let marksObtained = 0;
+
+      // 🚫 Unanswered handling
+      if (
+        r.selectedOption === -1 ||
+        r.selectedOption === null ||
+        (Array.isArray(r.selectedOption) && r.selectedOption.length === 0)
+      ) {
+        isCorrect = false;
+        marksObtained = 0;
+      } else {
+        const selected = Array.isArray(r.selectedOption)
+          ? r.selectedOption
+          : [r.selectedOption];
+
+        // Normalize and compare
+        const sortedSelected = [...selected].sort();
+        const sortedCorrect = [...correctAnswers].sort();
+
+        isCorrect =
+          sortedSelected.length === sortedCorrect.length &&
+          sortedSelected.every((v, i) => v === sortedCorrect[i]);
+
+        marksObtained = isCorrect ? question.marks : 0;
+      }
+
+      totalScore += marksObtained;
+
+      evaluatedAnswers.push({
+        questionId: question.questionId,
+        question: question.question,
+        options: question.options,
+
+        correctAnswer: correctAnswers,
+        selectedOption: r.selectedOption,
+
+        isMultiple,
+        isCorrect,
+        marksObtained,
+        totalMarks: question.marks,
+      });
+    }
+
+    // 🧾 STEP 4: Save attempt (FINAL GUARANTEE)
+    let attempt;
+    try {
+      attempt = await QuizAttempt.create({
+        registrationId,
+        answers: evaluatedAnswers,
+        totalScore,
+      });
+    } catch (err) {
+      // 🔁 Handles race condition safely
+      if (err.code === 11000) {
+        return res.status(403).json({
+          success: false,
+          message: "Quiz already submitted",
+        });
+      }
+      throw err;
+    }
+
+    // ✅ STEP 5: Send response
+    return res.status(200).json({
+      success: true,
+      message: "Quiz submitted successfully",
+      totalScore,
+      answers: evaluatedAnswers,
+    });
+
+  } catch (error) {
+    console.error("Submit Quiz Error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
     });
   }
+};
+
 
   const attempt = await QuizAttempt.create({
     registrationId,
