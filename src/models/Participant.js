@@ -1,26 +1,20 @@
 const mongoose = require("mongoose");
 
-const ParticipantSchema = new mongoose.Schema(
-  {
-    participantId: { type: String, unique: true },
-
-    finalTeamId: String,
-    registrationId: String,
-
-    name: String,
-    role: {
-      type: String,
-      enum: ["LEADER", "MEMBER"]
-    },
-
-    attendance: { type: Boolean, default: false },
-    breakfast: { type: Boolean, default: false },
-    lunch: { type: Boolean, default: false },
-    dinner: { type: Boolean, default: false },
-
-    qrToken: String // will be filled next step
+// 🔹 COMMON PARTICIPANT SCHEMA (Leader + Members)
+const participantSchema = new mongoose.Schema({
+  participantId: {
+    type: String,
+    required: true
   },
-  { timestamps: true }
-);
 
-module.exports = mongoose.model("Participant", ParticipantSchema);
+  name: String,           // Final certificate name
+  email: String,
+  phone: String,
+  college: String,
+
+  // 🔐 QR related
+  qrToken: String,        // JWT token
+  qrUrl: String           // Cloudinary URL
+});
+
+module.exports = mongoose.model("Participant", participantSchema);

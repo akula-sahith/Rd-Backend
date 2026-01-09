@@ -1,11 +1,14 @@
-const FakeTeam = require("../models/FakeTeam");
+// const FakeTeam = require("../models/FakeTeam");
 const Payment = require("../models/Payment");
 const FinalTeam = require("../models/FinalTeam");
 const Participant = require("../models/Participant");
 const { generateQrToken } = require("../utils/generateQrToken");
-// const generateQrImage = require("../utils/generateQrImage");
+const {
+  uploadQrToCloudinary,
+  uploadPaymentProof
+} = require("../services/CloudService");
 const sendQrEmail = require("../utils/sendQrEmail");
-
+const ShortlistedTeam = require("../models/shortlistedTeams");
 // count-based CFRD ID
 const generateFinalTeamId = async () => {
   const count = await FinalTeam.countDocuments();
@@ -15,131 +18,179 @@ const generateFinalTeamId = async () => {
 exports.createPaymentAndFinalTeam = async (req, res) => {
   try {
     const {
-      fakeRegistrationId,
-      finalLeaderName,
-      finalMembers,
+      teamId,
+      teamName,
+      problemStatement,
+
+      leaderName,
+      leaderEmail,
+      leaderPhone,
+      leaderCollege,
+
+      member2Name,
+      member2Email,
+      member2Phone,
+      member2College,
+
+      member3Name,
+      member3Email,
+      member3Phone,
+      member3College,
+
+      member4Name,
+      member4Email,
+      member4Phone,
+      member4College,
+
       paymentId,
       amount
     } = req.body;
 
-    // 1️⃣ Validation
-    if (!fakeRegistrationId || !finalLeaderName || !paymentId || !amount) {
-      return res.status(400).json({
+    /* ------------------------------------ */
+    /* 1️⃣ Check if team is shortlisted       */
+    /* ------------------------------------ */
+    const shortlisted = await ShortlistedTeam.findOne({ teamId });
+    if (!shortlisted) {
+      return res.status(403).json({
         success: false,
-        message: "Missing required payment data"
+        message: "Team is not shortlisted"
       });
     }
 
-    // 2️⃣ Fetch FakeTeam
-    const team = await FakeTeam.findOne({ fakeRegistrationId });
-    if (!team) {
-      return res.status(404).json({
-        success: false,
-        message: "Invalid registration ID"
-      });
-    }
-
-    // 3️⃣ Generate Final Team ID
+    /* ------------------------------------ */
+    /* 2️⃣ Generate Final Team ID             */
+    /* ------------------------------------ */
     const finalTeamId = await generateFinalTeamId();
 
-    // 4️⃣ Save Payment
-    await Payment.create({
-      registrationId: fakeRegistrationId,
-      finalTeamId,
-      finalLeaderName,
-      finalMembers,
-      paymentId,
-      amount,
-      status: "SUCCESS"
-    });
+    /* ------------------------------------ */
+    /* 3️⃣ Process Leader                    */
+    /* ------------------------------------ */
+    const leaderPid = `${finalTeamId}P1`;
+    const leaderQrToken = generateQrToken(leaderPid);
 
-    // 5️⃣ Create FinalTeam
+    const leaderQrUrl = await uploadQrToCloudinary(
+      leaderQrToken,
+      teamName,
+      leaderPid
+    );
+
+    const leaderPaymentUrl = await uploadPaymentProof(
+      req.files.leaderPaymentProof[0],
+      teamName
+    );
+
+    const leader = {
+      participantId: leaderPid,
+      name: leaderName,
+      email: leaderEmail,
+      phone: leaderPhone,
+      college: leaderCollege,
+      qrToken: leaderQrToken,
+      qrUrl: leaderQrUrl
+    };
+
+    /* ------------------------------------ */
+    /* 4️⃣ Process Members                  */
+    /* ------------------------------------ */
+    const membersInput = [
+      {
+        name: member2Name,
+        email: member2Email,
+        phone: member2Phone,
+        college: member2College,
+        fileKey: "member2PaymentProof"
+      },
+      {
+        name: member3Name,
+        email: member3Email,
+        phone: member3Phone,
+        college: member3College,
+        fileKey: "member3PaymentProof"
+      },
+      {
+        name: member4Name,
+        email: member4Email,
+        phone: member4Phone,
+        college: member4College,
+        fileKey: "member4PaymentProof"
+      }
+    ].filter(m => m.name); // remove empty members
+
+    const members = [];
+
+    for (let i = 0; i < membersInput.length; i++) {
+      const pid = `${finalTeamId}P${i + 2}`;
+      const qrToken = generateQrToken(pid);
+
+      const qrUrl = await uploadQrToCloudinary(qrToken, teamName, pid);
+      await uploadPaymentProof(req.files[membersInput[i].fileKey][0], teamName);
+
+      members.push({
+        participantId: pid,
+        name: membersInput[i].name,
+        email: membersInput[i].email,
+        phone: membersInput[i].phone,
+        college: membersInput[i].college,
+        qrToken,
+        qrUrl
+      });
+    }
+
+    /* ------------------------------------ */
+    /* 5️⃣ Save Participants Collection     */
+    /* ------------------------------------ */
+    await Participant.insertMany([
+      {
+        ...leader,
+        finalTeamId,
+        registrationId: teamId,
+        role: "LEADER"
+      },
+      ...members.map(m => ({
+        ...m,
+        finalTeamId,
+        registrationId: teamId,
+        role: "MEMBER"
+      }))
+    ]);
+
+    /* ------------------------------------ */
+    /* 6️⃣ Save Final Team                  */
+    /* ------------------------------------ */
     await FinalTeam.create({
       finalTeamId,
-      registrationId: fakeRegistrationId,
-      teamName: team.teamName,
-      teamSize: team.teamSize,
-      problemStatement: team.problemStatement,
-      leader: {
-        name: finalLeaderName,
-        email: team.leader.email,
-        phone: team.leader.phone,
-        college: team.leader.college,
-        department: team.leader.department,
-        year: team.leader.year
-      },
-      members: finalMembers.map((m) => ({ name: m.name })),
+      registrationId: teamId,
+      teamName,
+      teamSize: members.length + 1,
+      problemStatement,
+      leader,
+      members,
       payment: {
         paymentId,
         amount,
-        paidAt: new Date()
+        paidAt: new Date(),
+        status: "PENDING"
       }
     });
 
-    // 6️⃣ CREATE PARTICIPANTS + QR TOKENS + QR IMAGES
+    /* ------------------------------------ */
+    /* 7️⃣ Save Payment Record              */
+    /* ------------------------------------ */
+    await Payment.create({
+      finalTeamId,
+      teamId,
+      status: "PENDING"
+    });
 
-const participants = [];
-
-// 🔹 LEADER (P1)
-const leaderId = `${finalTeamId}P1`;
-const leaderToken = generateQrToken(leaderId);
-
-// 🔥 THIS WAS MISSING
-// await generateQrImage(leaderToken, leaderId);
-
-participants.push({
-  participantId: leaderId,
-  finalTeamId,
-  registrationId: fakeRegistrationId,
-  name: finalLeaderName,
-  role: "LEADER",
-  qrToken: leaderToken
-});
-
-// 🔹 MEMBERS (P2, P3, P4)
-for (let i = 0; i < finalMembers.length; i++) {
-  const pid = `${finalTeamId}P${i + 2}`;
-  const token = generateQrToken(pid);
-
-  // 🔥 THIS WAS MISSING
-  // await generateQrImage(token, pid);
-
-  participants.push({
-    participantId: pid,
-    finalTeamId,
-    registrationId: fakeRegistrationId,
-    name: finalMembers[i].name,
-    role: "MEMBER",
-    qrToken: token
-  });
-}
-
-// 🔹 Save participants ONLY after QRs exist
-await Participant.insertMany(participants);
-
-    
-   const createdParticipants = await Participant.find({ finalTeamId });
-
-await sendQrEmail({
-  toEmail: team.leader.email,
-  toName: finalLeaderName,
-  finalTeamId,
-  teamName: team.teamName,
-  participants: createdParticipants
-});
-
-
-    // 7️⃣ Response
     return res.status(201).json({
       success: true,
-      message: "Payment, FinalTeam, Participants & QR tokens created",
-      finalTeamId,
-      participantsCreated: participants.length
+      message: "Payment submitted successfully",
+      finalTeamId
     });
 
   } catch (error) {
-    console.error("Payment Controller Error:", error);
-    return res.status(500).json({
+    console.error("Payment Flow Error:", error);
+    res.status(500).json({
       success: false,
       message: "Internal server error"
     });

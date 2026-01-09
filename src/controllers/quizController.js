@@ -27,13 +27,15 @@ exports.verifyTeam = async (req, res) => {
 };
 
 exports.getQuizQuestions = async (req, res) => {
-  const questions = await QuizQuestion.find().select("-correctAnswer -__v");
+  const questions = await QuizQuestion.find()
+    .select("questionId question options isMultiple marks");
 
   res.status(200).json({
     success: true,
     questions,
   });
 };
+
 
 exports.submitQuiz = async (req, res) => {
   const { registrationId, responses } = req.body;
@@ -50,32 +52,60 @@ exports.submitQuiz = async (req, res) => {
   const evaluatedAnswers = [];
 
   for (const r of responses) {
-  const question = await QuizQuestion.findOne({
-    questionId: r.questionId,
-  });
+    const question = await QuizQuestion.findOne({
+      questionId: r.questionId,
+    });
 
-  if (!question) continue;
+    if (!question) continue;
 
-  let isCorrect = false;
-  let marks = 0;
+    const correctAnswers = question.correctAnswer; // array
+    const isMultiple = correctAnswers.length > 1;
 
-  // 🚫 Unanswered question
-  if (r.selectedOption !== -1) {
-    isCorrect = question.correctAnswer === r.selectedOption;
-    marks = isCorrect ? question.marks : 0;
-  }
+    let isCorrect = false;
+    let marks = 0;
 
-  totalScore += marks;
+    // 🚫 Unanswered
+    if (
+      r.selectedOption === -1 ||
+      r.selectedOption === null ||
+      (Array.isArray(r.selectedOption) && r.selectedOption.length === 0)
+    ) {
+      isCorrect = false;
+      marks = 0;
+    } else {
+      const selected = Array.isArray(r.selectedOption)
+        ? r.selectedOption
+        : [r.selectedOption];
+
+      // Normalize + sort for comparison
+      const sortedSelected = [...selected].sort();
+      const sortedCorrect = [...correctAnswers].sort();
+
+      isCorrect =
+        sortedSelected.length === sortedCorrect.length &&
+        sortedSelected.every((v, i) => v === sortedCorrect[i]);
+
+      marks = isCorrect ? question.marks : 0;
+    }
+
+    totalScore += marks;
 
     evaluatedAnswers.push({
-      questionId: r.questionId,
+      questionId: question.questionId,
+      question: question.question,
+      options: question.options,
+
+      correctAnswer: correctAnswers, // 👈 send correct answers
       selectedOption: r.selectedOption,
+
+      isMultiple, // 👈 tells frontend checkbox vs radio
       isCorrect,
       marksObtained: marks,
+      totalMarks: question.marks,
     });
   }
 
-  await QuizAttempt.create({
+  const attempt = await QuizAttempt.create({
     registrationId,
     answers: evaluatedAnswers,
     totalScore,
@@ -85,8 +115,10 @@ exports.submitQuiz = async (req, res) => {
     success: true,
     message: "Quiz submitted successfully",
     totalScore,
+    answers: evaluatedAnswers, // 👈 FULL FEEDBACK
   });
 };
+
 
 exports.getLeaderboard = async (req, res) => {
   try {

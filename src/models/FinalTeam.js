@@ -1,20 +1,29 @@
 const mongoose = require("mongoose");
+const participantSchema = new mongoose.Schema({
+  participantId: {
+    type: String,
+    required: true
+  },
 
-const finalMemberSchema = new mongoose.Schema({
-  name: String,
-  participantId: String
+  name: String,           // Final certificate name
+  email: String,
+  phone: String,
+  college: String,
+
+  // 🔐 QR related
+  qrToken: String,        // JWT token
+  qrUrl: String           // Cloudinary URL
 });
-
 const FinalTeamSchema = new mongoose.Schema(
   {
-    // 🔐 NEW FINAL TEAM ID (POST PAYMENT)
+    // 🔐 FINAL TEAM ID (after payment)
     finalTeamId: {
       type: String,
       unique: true,
       required: true
     },
 
-    // 🔗 Reference to old registration
+    // 🔗 Original registration reference
     registrationId: {
       type: String,
       required: true
@@ -24,22 +33,22 @@ const FinalTeamSchema = new mongoose.Schema(
     teamSize: Number,
     problemStatement: String,
 
-    leader: {
-      name: String,          // FINAL NAME (certificate)
-      email: String,
-      phone: String,
-      college: String,
-      department: String,
-      year: String,
-      participantId: String
-    },
+    // 👑 TEAM LEADER (WITH QR)
+    leader: participantSchema,
 
-    members: [finalMemberSchema],
+    // 👥 FINAL MEMBERS (WITH QR)
+    members: [participantSchema],
 
+    // 💳 PAYMENT DETAILS
     payment: {
       paymentId: String,
       amount: Number,
-      paidAt: Date
+      paidAt: Date,
+      status: {
+        type: String,
+        enum: ["PENDING", "VERIFIED", "REJECTED"],
+        default: "PENDING"
+      }
     }
   },
   { timestamps: true }

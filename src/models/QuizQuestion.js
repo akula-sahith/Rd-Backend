@@ -18,8 +18,13 @@ const quizQuestionSchema = new mongoose.Schema(
     },
 
     correctAnswer: {
-      type: Number, // index of option
+      type: [Number], // index of option
       required: true,
+    },
+
+     isMultiple: {
+      type: Boolean,
+      default: false, // ✅ NEW
     },
 
     marks: {
