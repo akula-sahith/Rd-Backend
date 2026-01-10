@@ -71,90 +71,88 @@ exports.verifyTeamId = async (req, res) => {
 
 exports.createPaymentAndFinalTeam = async (req, res) => {
   try {
-   const {
-  teamId,
-  teamName,
-  problemStatement,
+    const {
+      teamId,
+      teamName,
+      problemStatement,
 
-  leaderName,
-  leaderEmail,
-  leaderPhone,
-  leaderCollege,
-  leaderTransactionId,   // ✅ ADD THIS
+      leaderName,
+      leaderEmail,
+      leaderPhone,
+      leaderCollege,
+      leaderTransactionId,
 
-  member2Name,
-  member2Email,
-  member2Phone,
-  member2College,
-  member2TransactionId,
+      member2Name,
+      member2Email,
+      member2Phone,
+      member2College,
+      member2TransactionId,
 
-  member3Name,
-  member3Email,
-  member3Phone,
-  member3College,
-  member3TransactionId,
+      member3Name,
+      member3Email,
+      member3Phone,
+      member3College,
+      member3TransactionId,
 
-  member4Name,
-  member4Email,
-  member4Phone,
-  member4College,
-  member4TransactionId,
+      member4Name,
+      member4Email,
+      member4Phone,
+      member4College,
+      member4TransactionId
+    } = req.body;
 
-} = req.body;
-
-
-    /* ------------------------------------ */
-    /* 1️⃣ Check if team is shortlisted       */
-    /* ------------------------------------ */
+    /* 1️⃣ Check shortlist */
     const shortlisted = await ShortlistedTeam.findOne({ teamId });
     if (!shortlisted) {
-      return res.status(403).json({
-        success: false,
-        message: "Team is not shortlisted"
-      });
+      return res.status(403).json({ success: false, message: "Team is not shortlisted" });
     }
 
-    /* ------------------------------------ */
-    /* 2️⃣ Generate Final Team ID             */
-    /* ------------------------------------ */
+    /* 2️⃣ Generate Final Team ID */
     const finalTeamId = await generateFinalTeamId();
 
-    /* ------------------------------------ */
-    /* 3️⃣ Process Leader                    */
-    /* ------------------------------------ */
+    /* 3️⃣ Leader */
     const leaderPid = `${finalTeamId}P1`;
     const leaderQrToken = generateQrToken(leaderPid);
 
+    const leaderQrUrl = await uploadQrToCloudinary(
+      leaderQrToken,
+      teamId,
+      leaderPid
+    );
 
-    const leaderQrUrl = await uploadQrToCloudinary(qrToken, teamId, pid);
-
-    const leaderPaymentUrl = await uploadPaymentProof(
+    const leaderPaymentProofUrl = await uploadPaymentProof(
       req.files.leaderPaymentProof[0],
-      teamId
+      teamId,
+      "leader"
     );
 
     const leader = {
-  participantId: leaderPid,
-  name: leaderName,
-  email: leaderEmail,
-  phone: leaderPhone,
-  college: leaderCollege,
-  transactionId: leaderTransactionId, // ✅ STORE IT
-  qrToken: leaderQrToken,
-  qrUrl: leaderQrUrl
-};
+      participantId: leaderPid,
+      name: leaderName,
+      email: leaderEmail,
+      phone: leaderPhone,
+      college: leaderCollege,
+      transactionId: leaderTransactionId,
+      qrToken: leaderQrToken,
+      qrUrl: leaderQrUrl
+    };
 
+    const paymentParticipants = [
+      {
+        name: leaderName,
+        transactionId: leaderTransactionId,
+        paymentProofUrl: leaderPaymentProofUrl
+      }
+    ];
 
-    /* ------------------------------------ */
-    /* 4️⃣ Process Members                  */
-    /* ------------------------------------ */
+    /* 4️⃣ Members */
     const membersInput = [
-    {
+      {
         name: member2Name,
         email: member2Email,
         phone: member2Phone,
         college: member2College,
-        transactionId: member2TransactionId, // ADD THIS
+        transactionId: member2TransactionId,
         fileKey: "member2PaymentProof"
       },
       {
@@ -173,7 +171,7 @@ exports.createPaymentAndFinalTeam = async (req, res) => {
         transactionId: member4TransactionId,
         fileKey: "member4PaymentProof"
       }
-    ].filter(m => m.name); // remove empty members
+    ].filter(m => m.name);
 
     const members = [];
 
@@ -181,24 +179,33 @@ exports.createPaymentAndFinalTeam = async (req, res) => {
       const pid = `${finalTeamId}P${i + 2}`;
       const qrToken = generateQrToken(pid);
 
-      const qrUrl = await uploadQrToCloudinary(qrToken, teamName, pid);
-      await uploadPaymentProof(req.files[membersInput[i].fileKey][0], teamName);
+      const qrUrl = await uploadQrToCloudinary(qrToken, teamId, pid);
 
-     members.push({
+      const paymentProofUrl = await uploadPaymentProof(
+        req.files[membersInput[i].fileKey][0],
+        teamId,
+        `member${i + 2}`
+      );
+
+      members.push({
         participantId: pid,
         name: membersInput[i].name,
         email: membersInput[i].email,
         phone: membersInput[i].phone,
         college: membersInput[i].college,
-        transactionId: membersInput[i].transactionId, // SAVE TO DB
+        transactionId: membersInput[i].transactionId,
         qrToken,
         qrUrl
       });
+
+      paymentParticipants.push({
+        name: membersInput[i].name,
+        transactionId: membersInput[i].transactionId,
+        paymentProofUrl
+      });
     }
 
-    /* ------------------------------------ */
-    /* 5️⃣ Save Participants Collection     */
-    /* ------------------------------------ */
+    /* 5️⃣ Save Participants */
     await Participant.insertMany([
       {
         ...leader,
@@ -214,9 +221,7 @@ exports.createPaymentAndFinalTeam = async (req, res) => {
       }))
     ]);
 
-    /* ------------------------------------ */
-    /* 6️⃣ Save Final Team                  */
-    /* ------------------------------------ */
+    /* 6️⃣ Save Final Team */
     await FinalTeam.create({
       finalTeamId,
       registrationId: teamId,
@@ -227,12 +232,11 @@ exports.createPaymentAndFinalTeam = async (req, res) => {
       members
     });
 
-    /* ------------------------------------ */
-    /* 7️⃣ Save Payment Record              */
-    /* ------------------------------------ */
+    /* 7️⃣ Save Payment */
     await Payment.create({
       finalTeamId,
       teamId,
+      participants: paymentParticipants,
       status: "PENDING"
     });
 
@@ -244,12 +248,13 @@ exports.createPaymentAndFinalTeam = async (req, res) => {
 
   } catch (error) {
     console.error("Payment Flow Error:", error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: "Internal server error"
     });
   }
 };
+
 
 exports.getAllPayments = async (req, res) => {
   try {
