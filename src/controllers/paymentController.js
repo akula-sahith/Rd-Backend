@@ -15,6 +15,60 @@ const generateFinalTeamId = async () => {
   return `CFRD${String(count + 1).padStart(2, "0")}`;
 };
 
+// const ShortlistedTeam = require("../models/shortlistedTeams");
+// const FinalTeam = require("../models/FinalTeam");
+
+exports.verifyTeamId = async (req, res) => {
+  try {
+    const { teamId } = req.body;
+
+    if (!teamId) {
+      return res.status(400).json({
+        success: false,
+        message: "Team ID is required"
+      });
+    }
+
+    // 1️⃣ Check if team is shortlisted
+    const shortlisted = await ShortlistedTeam.findOne({ teamId });
+    if (!shortlisted) {
+      return res.status(403).json({
+        success: false,
+        message: "Team is not shortlisted"
+      });
+    }
+
+    // 2️⃣ Check if payment already submitted / team already finalized
+    const alreadyFinalized = await FinalTeam.findOne({ registrationId: teamId });
+    if (alreadyFinalized) {
+      return res.status(409).json({
+        success: false,
+        message: "Payment already submitted for this team"
+      });
+    }
+
+    // ✅ All checks passed
+    return res.status(200).json({
+      success: true,
+      message: "Team verified successfully",
+      team: {
+        teamId: shortlisted.teamId,
+        teamName: shortlisted.teamName,
+        problemStatement: shortlisted.problemStatement
+      }
+    });
+
+  } catch (error) {
+    console.error("Verify Team Error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error"
+    });
+  }
+};
+
+
+
 exports.createPaymentAndFinalTeam = async (req, res) => {
   try {
     const {
