@@ -125,15 +125,12 @@ exports.createPaymentAndFinalTeam = async (req, res) => {
     const leaderPid = `${finalTeamId}P1`;
     const leaderQrToken = generateQrToken(leaderPid);
 
-    const leaderQrUrl = await uploadQrToCloudinary(
-      leaderQrToken,
-      teamName,
-      leaderPid
-    );
+
+    const leaderQrUrl = await uploadQrToCloudinary(qrToken, teamId, pid);
 
     const leaderPaymentUrl = await uploadPaymentProof(
       req.files.leaderPaymentProof[0],
-      teamName
+      teamId
     );
 
     const leader = {
