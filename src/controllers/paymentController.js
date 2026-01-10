@@ -100,7 +100,6 @@ exports.createPaymentAndFinalTeam = async (req, res) => {
   member4College,
   member4TransactionId,
 
-  amount
 } = req.body;
 
 
