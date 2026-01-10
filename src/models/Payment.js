@@ -7,7 +7,7 @@ const PaymentSchema = new mongoose.Schema({
   participants: [
     {
       name: String,
-      transactionId: String,
+      transactionId: { type: String, unique: true, sparse: true },
       paymentProofUrl: String
     }
   ],

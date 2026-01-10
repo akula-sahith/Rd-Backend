@@ -71,34 +71,38 @@ exports.verifyTeamId = async (req, res) => {
 
 exports.createPaymentAndFinalTeam = async (req, res) => {
   try {
-    const {
-      teamId,
-      teamName,
-      problemStatement,
+   const {
+  teamId,
+  teamName,
+  problemStatement,
 
-      leaderName,
-      leaderEmail,
-      leaderPhone,
-      leaderCollege,
+  leaderName,
+  leaderEmail,
+  leaderPhone,
+  leaderCollege,
+  leaderTransactionId,   // ✅ ADD THIS
 
-      member2Name,
-      member2Email,
-      member2Phone,
-      member2College,
+  member2Name,
+  member2Email,
+  member2Phone,
+  member2College,
+  member2TransactionId,
 
-      member3Name,
-      member3Email,
-      member3Phone,
-      member3College,
+  member3Name,
+  member3Email,
+  member3Phone,
+  member3College,
+  member3TransactionId,
 
-      member4Name,
-      member4Email,
-      member4Phone,
-      member4College,
+  member4Name,
+  member4Email,
+  member4Phone,
+  member4College,
+  member4TransactionId,
 
-      paymentId,
-      amount
-    } = req.body;
+  amount
+} = req.body;
+
 
     /* ------------------------------------ */
     /* 1️⃣ Check if team is shortlisted       */
@@ -134,14 +138,16 @@ exports.createPaymentAndFinalTeam = async (req, res) => {
     );
 
     const leader = {
-      participantId: leaderPid,
-      name: leaderName,
-      email: leaderEmail,
-      phone: leaderPhone,
-      college: leaderCollege,
-      qrToken: leaderQrToken,
-      qrUrl: leaderQrUrl
-    };
+  participantId: leaderPid,
+  name: leaderName,
+  email: leaderEmail,
+  phone: leaderPhone,
+  college: leaderCollege,
+  transactionId: leaderTransactionId, // ✅ STORE IT
+  qrToken: leaderQrToken,
+  qrUrl: leaderQrUrl
+};
+
 
     /* ------------------------------------ */
     /* 4️⃣ Process Members                  */
@@ -249,6 +255,55 @@ exports.createPaymentAndFinalTeam = async (req, res) => {
   } catch (error) {
     console.error("Payment Flow Error:", error);
     res.status(500).json({
+      success: false,
+      message: "Internal server error"
+    });
+  }
+};
+
+exports.getAllPayments = async (req, res) => {
+  try {
+    const payments = await Payment.find()
+      .sort({ createdAt: -1 })
+      .lean();
+
+    const response = [];
+
+    for (const payment of payments) {
+      const team = await FinalTeam.findOne({
+        finalTeamId: payment.finalTeamId
+      }).lean();
+
+      if (!team) continue;
+
+      response.push({
+        finalTeamId: payment.finalTeamId,
+        registrationId: team.registrationId,
+        teamName: team.teamName,
+        problemStatement: team.problemStatement,
+        teamSize: team.teamSize,
+
+        // Participants with payment proof URLs
+        participants: payment.participants.map(p => ({
+          name: p.name,
+          transactionId: p.transactionId,
+          paymentProofUrl: p.paymentProofUrl
+        })),
+
+        status: payment.status,
+        submittedAt: payment.createdAt
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      count: response.length,
+      payments: response
+    });
+
+  } catch (error) {
+    console.error("Get All Payments Error:", error);
+    return res.status(500).json({
       success: false,
       message: "Internal server error"
     });
