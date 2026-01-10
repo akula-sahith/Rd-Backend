@@ -228,13 +228,7 @@ exports.createPaymentAndFinalTeam = async (req, res) => {
       teamSize: members.length + 1,
       problemStatement,
       leader,
-      members,
-      payment: {
-        paymentId,
-        amount,
-        paidAt: new Date(),
-        status: "PENDING"
-      }
+      members
     });
 
     /* ------------------------------------ */

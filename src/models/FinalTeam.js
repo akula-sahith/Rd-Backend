@@ -40,16 +40,6 @@ const FinalTeamSchema = new mongoose.Schema(
     members: [participantSchema],
 
     // 💳 PAYMENT DETAILS
-    payment: {
-      paymentId: String,
-      amount: Number,
-      paidAt: Date,
-      status: {
-        type: String,
-        enum: ["PENDING", "VERIFIED", "REJECTED"],
-        default: "PENDING"
-      }
-    }
   },
   { timestamps: true }
 );
