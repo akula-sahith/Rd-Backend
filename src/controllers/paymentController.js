@@ -147,11 +147,12 @@ exports.createPaymentAndFinalTeam = async (req, res) => {
     /* 4️⃣ Process Members                  */
     /* ------------------------------------ */
     const membersInput = [
-      {
+    {
         name: member2Name,
         email: member2Email,
         phone: member2Phone,
         college: member2College,
+        transactionId: member2TransactionId, // ADD THIS
         fileKey: "member2PaymentProof"
       },
       {
@@ -159,6 +160,7 @@ exports.createPaymentAndFinalTeam = async (req, res) => {
         email: member3Email,
         phone: member3Phone,
         college: member3College,
+        transactionId: member3TransactionId,
         fileKey: "member3PaymentProof"
       },
       {
@@ -166,6 +168,7 @@ exports.createPaymentAndFinalTeam = async (req, res) => {
         email: member4Email,
         phone: member4Phone,
         college: member4College,
+        transactionId: member4TransactionId,
         fileKey: "member4PaymentProof"
       }
     ].filter(m => m.name); // remove empty members
@@ -179,12 +182,13 @@ exports.createPaymentAndFinalTeam = async (req, res) => {
       const qrUrl = await uploadQrToCloudinary(qrToken, teamName, pid);
       await uploadPaymentProof(req.files[membersInput[i].fileKey][0], teamName);
 
-      members.push({
+     members.push({
         participantId: pid,
         name: membersInput[i].name,
         email: membersInput[i].email,
         phone: membersInput[i].phone,
         college: membersInput[i].college,
+        transactionId: membersInput[i].transactionId, // SAVE TO DB
         qrToken,
         qrUrl
       });
