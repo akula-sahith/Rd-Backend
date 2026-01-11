@@ -1,5 +1,6 @@
 // const FakeTeam = require("../models/FakeTeam");
 const Payment = require("../models/Payment");
+const Team = require("../models/Team");
 const FinalTeam = require("../models/FinalTeam");
 const Participant = require("../models/Participant");
 const { generateQrToken } = require("../utils/generateQrToken");
@@ -74,8 +75,6 @@ exports.createPaymentAndFinalTeam = async (req, res) => {
     const {
       teamId,
       teamName,
-      problemStatement,
-
       leaderName,
       leaderEmail,
       leaderPhone,
@@ -102,10 +101,26 @@ exports.createPaymentAndFinalTeam = async (req, res) => {
     } = req.body;
 
     /* 1️⃣ Check shortlist */
-    const shortlisted = await ShortlistedTeam.findOne({ teamId });
-    if (!shortlisted) {
-      return res.status(403).json({ success: false, message: "Team is not shortlisted" });
-    }
+   const shortlisted = await ShortlistedTeam.findOne({ teamId });
+if (!shortlisted) {
+  return res.status(403).json({
+    success: false,
+    message: "Team is not shortlisted"
+  });
+}
+
+/* 1.1️⃣ Fetch Team (SOURCE OF TRUTH) */
+const team = await Team.findOne({ registrationId: teamId });
+if (!team) {
+  return res.status(404).json({
+    success: false,
+    message: "Team not found"
+  });
+}
+
+const problemStatement = team.problemStatement;
+
+
 
     /* 2️⃣ Generate Final Team ID */
     const finalTeamId = await generateFinalTeamId();
@@ -258,10 +273,32 @@ exports.createPaymentAndFinalTeam = async (req, res) => {
 
 exports.getAllPayments = async (req, res) => {
   try {
+    /* 1️⃣ Fetch all payments */
     const payments = await Payment.find()
       .sort({ createdAt: -1 })
       .lean();
 
+    /* 2️⃣ Status counts (aggregation) */
+    const statusCounts = await Payment.aggregate([
+      {
+        $group: {
+          _id: "$status",
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+
+    const counts = {
+      PENDING: 0,
+      VERIFIED: 0,
+      REJECTED: 0
+    };
+
+    statusCounts.forEach(s => {
+      counts[s._id] = s.count;
+    });
+
+    /* 3️⃣ Build response */
     const response = [];
 
     for (const payment of payments) {
@@ -278,7 +315,6 @@ exports.getAllPayments = async (req, res) => {
         problemStatement: team.problemStatement,
         teamSize: team.teamSize,
 
-        // Participants with payment proof URLs
         participants: payment.participants.map(p => ({
           name: p.name,
           transactionId: p.transactionId,
@@ -290,9 +326,15 @@ exports.getAllPayments = async (req, res) => {
       });
     }
 
+    /* 4️⃣ Final API response */
     return res.status(200).json({
       success: true,
-      count: response.length,
+      total: response.length,
+      statusSummary: {
+        pending: counts.PENDING,
+        verified: counts.VERIFIED,
+        rejected: counts.REJECTED
+      },
       payments: response
     });
 
