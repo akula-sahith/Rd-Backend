@@ -273,12 +273,12 @@ const problemStatement = team.problemStatement;
 
 exports.getAllPayments = async (req, res) => {
   try {
-    /* 1️⃣ Fetch all payments */
+    /* 1️⃣ Fetch payments */
     const payments = await Payment.find()
       .sort({ createdAt: -1 })
       .lean();
 
-    /* 2️⃣ Status counts (aggregation) */
+    /* 2️⃣ Status counts */
     const statusCounts = await Payment.aggregate([
       {
         $group: {
@@ -288,25 +288,25 @@ exports.getAllPayments = async (req, res) => {
       }
     ]);
 
-    const counts = {
-      PENDING: 0,
-      VERIFIED: 0,
-      REJECTED: 0
-    };
-
+    const counts = { PENDING: 0, VERIFIED: 0, REJECTED: 0 };
     statusCounts.forEach(s => {
       counts[s._id] = s.count;
     });
 
-    /* 3️⃣ Build response */
     const response = [];
 
     for (const payment of payments) {
+      /* 3️⃣ Fetch FinalTeam */
       const team = await FinalTeam.findOne({
         finalTeamId: payment.finalTeamId
       }).lean();
-
       if (!team) continue;
+
+      /* 4️⃣ Build participant list with participantId */
+      const allParticipants = [
+        team.leader,
+        ...(team.members || [])
+      ];
 
       response.push({
         finalTeamId: payment.finalTeamId,
@@ -315,18 +315,24 @@ exports.getAllPayments = async (req, res) => {
         problemStatement: team.problemStatement,
         teamSize: team.teamSize,
 
-        participants: payment.participants.map(p => ({
-          name: p.name,
-          transactionId: p.transactionId,
-          paymentProofUrl: p.paymentProofUrl
-        })),
+        participants: payment.participants.map(p => {
+          const matched = allParticipants.find(
+            ap => ap.name === p.name
+          );
+
+          return {
+            participantId: matched?.participantId || null, // ✅ added
+            name: p.name,
+            transactionId: p.transactionId,
+            paymentProofUrl: p.paymentProofUrl
+          };
+        }),
 
         status: payment.status,
         submittedAt: payment.createdAt
       });
     }
 
-    /* 4️⃣ Final API response */
     return res.status(200).json({
       success: true,
       total: response.length,
