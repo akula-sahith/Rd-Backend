@@ -3,7 +3,7 @@ const router = express.Router();
 
 const upload = require("../middleware/multer");
 const {
-  createPaymentAndFinalTeam , verifyTeamId , getAllPayments
+  createPaymentAndFinalTeam , verifyTeamId , getAllPayments , getUnpaidTeams
 } = require("../controllers/paymentController");
 
 router.post(
@@ -19,5 +19,6 @@ router.post(
 
 router.post("/verify-team", verifyTeamId);
 router.get("/allpayments", getAllPayments);
+router.get("/allunpaidteams",getUnpaidTeams);
 
 module.exports = router;

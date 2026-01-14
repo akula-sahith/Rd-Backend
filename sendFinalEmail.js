@@ -7,7 +7,7 @@ import FinalTeam from "./src/models/FinalTeam.js";
 dotenv.config();
 
 /* ---------------- HARD CODE REGISTRATION ID ---------------- */
-const REGISTRATION_ID = "RD294";
+// const REGISTRATION_ID = "RD294";
 
 /* ---------------- EMAIL ACCOUNTS POOL ---------------- */
 const emailAccounts = [
@@ -229,10 +229,10 @@ await transporter.sendMail({
 };
 
 /* ---------------- MAIN FUNCTION ---------------- */
-const sendFinalTeamMail = async () => {
+const sendFinalTeamMail = async (REGISTRATION_ID) => {
   try {
-    await mongoose.connect(process.env.MONGO_URI);
-    console.log("✅ MongoDB connected");
+    // await mongoose.connect(process.env.MONGO_URI);
+    // console.log("✅ MongoDB connected");
 
     const finalTeam = await FinalTeam.findOne({
       registrationId: REGISTRATION_ID,
@@ -266,11 +266,33 @@ const sendFinalTeamMail = async () => {
     });
 
     console.log("✅ FinalTeam email sent successfully");
-    process.exit(0);
   } catch (err) {
     console.error("❌ Email process failed:", err.message);
+    // process.exit(1);
+  }
+};
+
+const sendMails = async () => {
+  try {
+    await mongoose.connect(process.env.MONGO_URI);
+    console.log("✅ MongoDB connected");
+
+    const regIds = ["RD292","RD13","RD93","RD55","RD99","RD29","RD70","RD313","RD245","RD326","RD27","RD272","RD306","RD78"];
+    for (const REGISTRATION_ID of regIds) {
+      try {
+        await sendFinalTeamMail(REGISTRATION_ID);
+      } catch (err) {
+        console.error(`❌ Failed for ${REGISTRATION_ID}:`, err.message);
+      }
+    }
+
+    console.log("🎉 All emails processed");
+    process.exit(0);
+  } catch (err) {
+    console.error("❌ Fatal error:", err.message);
     process.exit(1);
   }
 };
 
-sendFinalTeamMail();
+sendMails();
+1

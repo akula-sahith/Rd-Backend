@@ -8,11 +8,11 @@ dotenv.config();
 
 /* ---------------- EMAIL ACCOUNTS POOL ---------------- */
 const emailAccounts = [
-  { user: process.env.EMAIL_USER1, pass: process.env.EMAIL_PASS1 },
   { user: process.env.EMAIL_USER2, pass: process.env.EMAIL_PASS2 },
   { user: process.env.EMAIL_USER3, pass: process.env.EMAIL_PASS3 },
   { user: process.env.EMAIL_USER4, pass: process.env.EMAIL_PASS4 },
   { user: process.env.EMAIL_USER5, pass: process.env.EMAIL_PASS5 },
+  { user: process.env.EMAIL_USER6, pass: process.env.EMAIL_PASS6 },
 ];
 
 /* ---------------- SEND WITH FAILOVER ---------------- */
@@ -96,11 +96,13 @@ const sendEmailsToShortlistedTeams = async () => {
     await mongoose.connect(process.env.MONGO_URI);
     console.log("✅ Connected to MongoDB");
 
-    const shortlistedTeams = await ShortlistedTeam.find({});
-
+    const shortlistedTeams = [
+  "RD328"
+]
+    
     for (const shortlisted of shortlistedTeams) {
       const team = await Team.findOne({
-        registrationId: shortlisted.teamId,
+        registrationId: shortlisted,
       });
 
       if (!team?.leader?.email) {
@@ -109,7 +111,7 @@ const sendEmailsToShortlistedTeams = async () => {
       }
 
       await sendEmailWithFailover({
-        teamName: shortlisted.teamName,
+        teamName: team.teamName,
         leaderEmail: team.leader.email,
       });
     }

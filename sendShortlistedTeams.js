@@ -7,21 +7,7 @@ dotenv.config();
 
 // 🔹 Team IDs to shortlist
 const teamIdsToShortlist = [
-  "RD13",
-  "RD20", "RD25", "RD29", "RD34", "RD36", "RD37",
-  "RD42", "RD45", "RD46", "RD47", "RD50", "RD52",
-  "RD55", "RD60", "RD65", "RD69", "RD70", "RD78",
-  "RD81", "RD85", "RD91", "RD93", "RD96", "RD99",
-  "RD128", "RD131", "RD135", "RD136", "RD138",
-  "RD141", "RD154", "RD159", "RD163", "RD168",
-  "RD178", "RD179", "RD183", "RD191", "RD194",
-  "RD195", "RD197", "RD203", "RD205", "RD206",
-  "RD208", "RD209", "RD211", "RD212", "RD213",
-  "RD215", "RD217", "RD223", "RD225", "RD239",
-  "RD245", "RD250", "RD252", "RD275", "RD276",
-  "RD281", "RD283", "RD293", "RD294", "RD296","RD18", "RD272",
-  "RD301", "RD307", "RD308", "RD309", "RD310",
-  "RD312", "RD313", "RD319", "RD320", "RD324" , "RD306" , "RD279" , "RD288"
+  "RD323"
 ]
 
 
@@ -31,8 +17,8 @@ const seedShortlistedTeams = async () => {
     await mongoose.connect(process.env.MONGO_URI);
     console.log("✅ Connected to MongoDB");
 
-    // 🧹 Optional: clear old shortlisted teams
-    await ShortlistedTeam.deleteMany();
+    // // 🧹 Optional: clear old shortlisted teams
+    // await ShortlistedTeam.deleteMany();
 
     // 🔍 Fetch teams
     const teams = await Team.find({ registrationId: { $in: teamIdsToShortlist } });
@@ -46,7 +32,7 @@ const seedShortlistedTeams = async () => {
     const shortlistedTeams = teams.map(team => ({
       teamId: team.registrationId,
       teamName: team.teamName,
-      problemDomain: team.problemDomain,
+      problemDomain: team.problemStatement,
       isShortlisted: true
     }));
 

@@ -352,3 +352,71 @@ exports.getAllPayments = async (req, res) => {
     });
   }
 };
+
+exports.getUnpaidTeams = async (req, res) => {
+  try {
+    /* 1️⃣ Get shortlisted team IDs */
+    const shortlistedTeams = await ShortlistedTeam.find(
+      {},
+      { teamId: 1, createdAt: 1 }
+    ).lean();
+
+    /* 2️⃣ Get already paid teams */
+    const finalTeams = await FinalTeam.find(
+      {},
+      { registrationId: 1 }
+    ).lean();
+
+    const paidTeamIds = new Set(
+      finalTeams.map(t => t.registrationId)
+    );
+
+    /* 3️⃣ Filter unpaid team IDs */
+    const unpaidTeamIds = shortlistedTeams.filter(
+      t => !paidTeamIds.has(t.teamId)
+    );
+
+    /* 4️⃣ Fetch team details from Team collection */
+    const unpaidTeams = [];
+
+    for (const t of unpaidTeamIds) {
+      const team = await Team.findOne(
+        { registrationId: t.teamId },
+        {
+          teamName: 1,
+          problemStatement: 1,
+          leader: 1
+        }
+      ).lean();
+
+      if (!team) continue;
+
+      unpaidTeams.push({
+        teamId: t.teamId,
+        teamName: team.teamName,
+        problemStatement: team.problemStatement,
+
+        // 🔥 IMPORTANT CONTACT DETAILS
+        leaderName: team.leader?.name || "N/A",
+        leaderEmail: team.leader?.email || "N/A",
+        leaderPhone: team.leader?.phone || "N/A",
+        leaderCollege: team.leader?.college || "N/A",
+
+        shortlistedAt: t.createdAt
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      total: unpaidTeams.length,
+      unpaidTeams
+    });
+
+  } catch (error) {
+    console.error("❌ Get Unpaid Teams Error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error"
+    });
+  }
+};
