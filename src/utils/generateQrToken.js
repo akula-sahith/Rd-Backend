@@ -6,6 +6,6 @@ exports.generateQrToken = (participantId) => {
   return jwt.sign(
     { participantId },
     QR_SECRET,
-    { expiresIn: "3d" } // event duration
+    { expiresIn: "30d" } // event duration
   );
 };
