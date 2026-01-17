@@ -3,7 +3,7 @@ import dotenv from "dotenv";
 import nodemailer from "nodemailer";
 import axios from "axios";
 import FinalTeam from "./src/models/FinalTeam.js";
-
+import Payment from "./src/models/Payment.js";
 dotenv.config();
 
 /* ---------------- HARD CODE REGISTRATION ID ---------------- */
@@ -260,33 +260,60 @@ const sendFinalTeamMail = async (REGISTRATION_ID) => {
       });
     }
 
-    await sendEmailWithFailover({
-      finalTeam,
-      attachments,
-    });
+   await sendEmailWithFailover({
+  finalTeam,
+  attachments,
+});
 
-    console.log("✅ FinalTeam email sent successfully");
-  } catch (err) {
-    console.error("❌ Email process failed:", err.message);
-    // process.exit(1);
-  }
-};
+console.log(
+  `📧 Mail sent | TeamID: ${finalTeam.registrationId} | FinalTeamID: ${finalTeam.finalTeamId}`
+);
+
+return {
+  teamId: finalTeam.registrationId,
+  finalTeamId: finalTeam.finalTeamId,
+}}catch(err){
+  console.log(err);
+}};
 
 const sendMails = async () => {
   try {
     await mongoose.connect(process.env.MONGO_URI);
     console.log("✅ MongoDB connected");
 
-    const regIds = ["RD292","RD13","RD93","RD55","RD99","RD29","RD70","RD313","RD245","RD326","RD27","RD272","RD306","RD78"];
-    for (const REGISTRATION_ID of regIds) {
+    /* -------- FETCH PAID PAYMENTS -------- */
+    // const payments = await Payment.find().select("teamId");
+
+    // console.log(`💰 Payments found: ${payments.length}`);
+
+    // if (payments.length === 0) {
+    //   console.log("⚠️ No payments found. Exiting.");
+    //   process.exit(0);
+    // }
+
+    /* -------- SEND MAILS -------- */
+    let regIds = ["RD244" , "RD271"]
+    for (const rid of regIds) {
+      // const teamId = payment.teamId;
+
+      console.log(`🚀 Processing TeamID: ${rid}`);
+
       try {
-        await sendFinalTeamMail(REGISTRATION_ID);
+        const result = await sendFinalTeamMail(rid);
+
+        if (result) {
+          console.log(
+            `✅ Mail SUCCESS → TeamID: ${result.teamId}, FinalTeamID: ${result.finalTeamId}`
+          );
+        }
       } catch (err) {
-        console.error(`❌ Failed for ${REGISTRATION_ID}:`, err.message);
+        console.error(
+          `❌ Mail FAILED → TeamID: ${teamId} | Reason: ${err.message}`
+        );
       }
     }
 
-    console.log("🎉 All emails processed");
+    console.log("🎉 All payment-based emails processed");
     process.exit(0);
   } catch (err) {
     console.error("❌ Fatal error:", err.message);
@@ -294,5 +321,5 @@ const sendMails = async () => {
   }
 };
 
+
 sendMails();
-1

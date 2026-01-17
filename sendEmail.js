@@ -97,7 +97,7 @@ const sendEmailsToShortlistedTeams = async () => {
     console.log("✅ Connected to MongoDB");
 
     const shortlistedTeams = [
-  "RD328"
+  "RD244"
 ]
     
     for (const shortlisted of shortlistedTeams) {

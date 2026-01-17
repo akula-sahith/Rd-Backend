@@ -420,3 +420,62 @@ exports.getUnpaidTeams = async (req, res) => {
     });
   }
 };
+
+exports.getAllFinalTeams = async (req, res) => {
+  try {
+    const finalTeams = await FinalTeam.aggregate([
+      {
+        // extract numeric part from "CFRD01" → 1
+        $addFields: {
+          teamNumber: {
+            $toInt: {
+              $substr: ["$finalTeamId", 4, -1]
+            }
+          }
+        }
+      },
+      {
+        $sort: { teamNumber: 1 } // ASCENDING
+      }
+    ]);
+
+    const response = finalTeams.map(team => ({
+      finalTeamId: team.finalTeamId,
+      registrationId: team.registrationId,
+      teamName: team.teamName,
+      problemStatement: team.problemStatement,
+      teamSize: team.teamSize,
+
+      leader: {
+        participantId: team.leader.participantId,
+        name: team.leader.name,
+        email: team.leader.email,
+        phone: team.leader.phone,
+        college: team.leader.college
+      },
+
+      members: (team.members || []).map(m => ({
+        participantId: m.participantId,
+        name: m.name,
+        email: m.email,
+        phone: m.phone,
+        college: m.college
+      })),
+
+      createdAt: team.createdAt
+    }));
+
+    return res.status(200).json({
+      success: true,
+      total: response.length,
+      finalTeams: response
+    });
+
+  } catch (error) {
+    console.error("❌ Get All Final Teams Error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error"
+    });
+  }
+};
